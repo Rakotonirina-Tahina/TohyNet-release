@@ -1,6 +1,6 @@
 #!/bin/bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║          TohyNet — Script d'installation               ║
+# ║      TohyNet Release — Installateur binaire            ║
 # ╚══════════════════════════════════════════════════════════╝
 
 set -e
@@ -19,7 +19,7 @@ error()   { echo -e "${RED}${BOLD}[ERR]${RESET}  $*"; }
 
 echo -e "${CYAN}${BOLD}"
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║             TohyNet — Installation                    ║"
+echo "║      TohyNet Release — Installation binaire          ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
 
@@ -30,74 +30,45 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# ── Détection de la distro ─────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRC_BIN="$SCRIPT_DIR/tohynet"
+DEST_BIN="/usr/local/bin/tohynet"
+
+if [ ! -f "$SRC_BIN" ]; then
+    error "Binaire introuvable: $SRC_BIN"
+    error "Placez ce script à côté du fichier 'tohynet' dans le repo release."
+    exit 1
+fi
+
+# ── Détection de la distro ───────────────────────────────────────────────────
 if [ -f /etc/debian_version ]; then
     DISTRO="debian"
-    PKG_MGR="apt-get"
     info "Distro détectée: Debian/Ubuntu"
 elif [ -f /etc/arch-release ]; then
     DISTRO="arch"
-    PKG_MGR="pacman"
     info "Distro détectée: Arch Linux"
 elif [ -f /etc/fedora-release ]; then
     DISTRO="fedora"
-    PKG_MGR="dnf"
     info "Distro détectée: Fedora/RHEL"
 else
-    warn "Distribution non reconnue. Tentative avec apt-get..."
-    DISTRO="debian"
-    PKG_MGR="apt-get"
+    DISTRO="unknown"
+    warn "Distribution non reconnue. Installation minimale seulement."
 fi
 
-# ── Installation des paquets ───────────────────────────────────────────────────
-info "Installation des dépendances..."
-
+# ── Installation des dépendances système réseau (pas Python) ───────────────
+info "Installation des dépendances réseau système..."
 if [ "$DISTRO" = "debian" ]; then
     apt-get update -qq
-    apt-get install -y \
-        python3 \
-        python3-tk \
-        network-manager \
-        hostapd \
-        dnsmasq \
-        iw \
-        wireless-tools \
-        iptables \
-        net-tools \
-        curl \
+    apt-get install -y network-manager hostapd dnsmasq iw wireless-tools iptables net-tools curl \
         2>/dev/null || warn "Certains paquets n'ont pas pu être installés."
-
 elif [ "$DISTRO" = "arch" ]; then
-    pacman -Sy --noconfirm \
-        python \
-        tk \
-        networkmanager \
-        hostapd \
-        dnsmasq \
-        iw \
-        wireless_tools \
-        iptables \
-        net-tools \
-        curl \
+    pacman -Sy --noconfirm networkmanager hostapd dnsmasq iw wireless_tools iptables net-tools curl \
         2>/dev/null || warn "Certains paquets n'ont pas pu être installés."
-    systemctl enable --now NetworkManager
-
+    systemctl enable --now NetworkManager 2>/dev/null || true
 elif [ "$DISTRO" = "fedora" ]; then
-    dnf install -y \
-        python3 \
-        python3-tkinter \
-        NetworkManager \
-        hostapd \
-        dnsmasq \
-        iw \
-        wireless-tools \
-        iptables \
-        net-tools \
-        curl \
+    dnf install -y NetworkManager hostapd dnsmasq iw wireless-tools iptables net-tools curl \
         2>/dev/null || warn "Certains paquets n'ont pas pu être installés."
 fi
-
-success "Dépendances installées."
 
 # ── Vérification des binaires requis ─────────────────────────────────────────
 info "Vérification des composants système requis..."
@@ -114,26 +85,10 @@ else
     success "Tous les composants réseau requis sont présents."
 fi
 
-# ── Copier le script principal ─────────────────────────────────────────────────
-INSTALL_DIR="/usr/local/lib/tohynet"
-BIN_PATH="/usr/local/bin/tohynet"
-
-info "Installation du logiciel dans $INSTALL_DIR..."
-mkdir -p "$INSTALL_DIR"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cp "$SCRIPT_DIR/tohynet.py" "$INSTALL_DIR/tohynet.py"
-chmod 644 "$INSTALL_DIR/tohynet.py"
-
-# ── Créer le lanceur ───────────────────────────────────────────────────────────
-cat > "$BIN_PATH" << 'LAUNCHER'
-#!/bin/bash
-# Lanceur TohyNet
-exec python3 /usr/local/lib/tohynet/tohynet.py "$@"
-LAUNCHER
-
-chmod +x "$BIN_PATH"
-success "Lanceur créé: $BIN_PATH  →  commande: tohynet"
+# ── Installer le binaire release ─────────────────────────────────────────────
+info "Installation du binaire dans $DEST_BIN..."
+install -m 755 "$SRC_BIN" "$DEST_BIN"
+success "Binaire installé: $DEST_BIN"
 
 # ── Sudoers pour les commandes réseau ──────────────────────────────────────────
 info "Configuration des permissions sudo..."
@@ -169,9 +124,9 @@ Version=1.0
 Type=Application
 Name=TohyNet
 Comment=Connectez et partagez le WiFi simultanément
-Exec=bash -c 'pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY python3 /usr/local/lib/tohynet/tohynet.py'
+Exec=/usr/local/bin/tohynet
 Icon=network-wireless
-Terminal=true
+Terminal=false
 Categories=Network;
 DESKTOP
         chmod +x "$DESKTOP_DIR/tohynet.desktop"
@@ -187,6 +142,6 @@ echo "║      TohyNet — Installation réussie ! 🎉          ║"
 echo "╚══════════════════════════════════════════════════════╝${RESET}"
 echo
 echo -e "  Lancez le programme avec: ${CYAN}${BOLD}tohynet${RESET}"
-echo -e "  Ou directement:           ${CYAN}sudo tohynet${RESET}"
+echo -e "  Ou avec privilèges:       ${CYAN}sudo tohynet${RESET}"
 echo -e "  Binaire installé dans:    ${CYAN}/usr/local/bin/tohynet${RESET}"
 echo

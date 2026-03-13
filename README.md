@@ -7,16 +7,15 @@
 
 ## 🚀 Installation rapide
 
-> ⚠️ **Ce dépôt contient le code source.** Il requiert Python 3 + les dépendances.  
-> Pour une installation simple **sans Python**, téléchargez plutôt le **binaire précompilé** :
-> 🔗 [github.com/Rakotonirina-Tahina/TohyNet-release](https://github.com/Rakotonirina-Tahina/TohyNet-release)
+> ✅ **Ce dépôt est le dépôt de déploiement (release).**
+> Il contient le binaire `tohynet` + un installateur prêt à l'emploi.
 
 ```bash
-# 1. Cloner ce dépôt source
-git clone https://github.com/Rakotonirina-Tahina/TohyNet.git
-cd TohyNet
+# 1. Cloner le dépôt release
+git clone https://github.com/Rakotonirina-Tahina/TohyNet-release.git
+cd TohyNet-release
 
-# 2. Installer les dépendances système et le lanceur Python
+# 2. Installer le binaire + dépendances système réseau
 chmod +x install.sh
 sudo ./install.sh
 
